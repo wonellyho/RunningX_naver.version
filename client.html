@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>위치 전송</title>
+</head>
+<body>
+    <h1>현재 위치를 서버로 전송</h1>
+    <button onclick="sendLocation()">위치 전송</button>
+
+    <script>
+        function sendLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+
+                    // 서버로 POST 요청
+                    fetch('http://localhost:3000/submit-location', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ latitude, longitude })
+                    })
+                    .then(response => response.json())
+                    .then(data => console.log(data))
+                    .catch(error => console.error("요청 실패:", error));
+                }, error => {
+                    console.error("위치 정보를 가져오는 데 실패했습니다:", error);
+                });
+            } else {
+                alert("Geolocation을 지원하지 않는 브라우저입니다.");
+            }
+        }
+    </script>
+</body>
+</html>

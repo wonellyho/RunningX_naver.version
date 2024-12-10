@@ -1,0 +1,911 @@
+
+
+<!-- 
+
+ <!DOCTYPE html>
+ <html lang="en">
+ <head>
+     <script type="text/javascript" 
+         src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=h2d8vaz3os"></script>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>Nearby Convenience Stores</title>
+ </head>
+ <body>
+     <div id="map" style="width:100%; height:800px;"></div>
+     <script>
+         // 네이버 지도 초기화
+         var map = new naver.maps.Map('map', {
+             center: new naver.maps.LatLng(37.5112, 127.0981), // 기본 위치 (잠실 롯데월드)
+             zoom: 15
+         });
+ 
+         // 현재 위치 마커
+         var userMarker = new naver.maps.Marker({
+             position: map.getCenter(),
+             map: map,
+             title: "내 위치"
+         });
+ 
+         // 사용자 위치 업데이트 함수
+         function updateLocation() {
+             if (navigator.geolocation) {
+                 navigator.geolocation.getCurrentPosition(
+                     function (position) {
+                         var lat = position.coords.latitude;
+                         var lng = position.coords.longitude;
+ 
+                         var userLatLng = new naver.maps.LatLng(lat, lng);
+ 
+                         // 지도 중심 이동
+                         map.setCenter(userLatLng);
+ 
+                         // 현재 위치 마커 업데이트
+                         userMarker.setPosition(userLatLng);
+ 
+                         // 주변 편의점 검색
+                         searchNearbyConvenienceStores(userLatLng);
+ 
+                         console.log(`현재 위치: 위도(${lat}), 경도(${lng})`);
+                     },
+                     function (error) {
+                         console.error("위치 정보를 가져올 수 없습니다:", error);
+                     },
+                     {
+                         enableHighAccuracy: true,
+                         maximumAge: 0,
+                         timeout: 10000
+                     }
+                 );
+             } else {
+                 alert("Geolocation을 지원하지 않는 브라우저입니다.");
+             }
+         }
+ 
+         // 주변 편의점 검색 함수
+         function searchNearbyConvenienceStores(location) {
+             naver.maps.Service.geocode({
+                 query: "편의점" // 키워드로 편의점 검색
+             }, function(status, response) {
+                 if (status === naver.maps.Service.Status.OK) {
+                     console.log("검색 결과: ", response);
+                     response.result.items.forEach(function(item) {
+                         new naver.maps.Marker({
+                             position: new naver.maps.LatLng(item.point.y, item.point.x),
+                             map: map,
+                             title: item.title
+                         });
+                     });
+                 } else {
+                     console.error("검색 실패: ", status);
+                 }
+             });
+         }
+ 
+         // 실시간 위치 업데이트 (5초마다)
+         setInterval(updateLocation, 5000);
+ 
+         // 초기 위치 업데이트
+         updateLocation();
+     </script>
+ </body>
+ </html>
+
+
+ -->
+
+<!-- 
+화장실정보붙여보기
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script type="text/javascript" 
+        src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=h2d8vaz3os"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nearby Public Toilets</title>
+</head>
+<body>
+    <div id="map" style="width:100%; height:800px;"></div>
+    <script>
+        // 네이버 지도 초기화
+        var map = new naver.maps.Map('map', {
+            center: new naver.maps.LatLng(37.5112, 127.0981), // 기본 위치 (잠실 롯데월드)
+            zoom: 15
+        });
+
+        // 현재 위치 마커
+        var userMarker = new naver.maps.Marker({
+            position: map.getCenter(),
+            map: map,
+            title: "내 위치"
+        });
+
+        // 거리 계산 함수 (위도와 경도를 사용)
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371e3; // 지구 반지름 (미터)
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lng2 - lng1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            const distance = R * c; // 거리 (미터)
+            return distance;
+        }
+
+        // 화장실 데이터를 JSON에서 로드하여 마커로 표시
+        function loadToiletMarkers(userLatLng) {
+            fetch('toilets.json') // JSON 파일 로드
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json(); // JSON 데이터 파싱
+                })
+                .then(data => {
+                    console.log("JSON 파일 불러오기 성공! 데이터 확인:");
+                    console.log(data); // 불러온 JSON 데이터를 출력하여 확인
+
+                    // 데이터가 정상적으로 로드되었는지 확인
+                    data.forEach((toilet, index) => {
+                        const lat = parseFloat(toilet.latitude); // 위도
+                        const lng = parseFloat(toilet.longitude); // 경도
+                        const toiletName = toilet.name || "공중화장실"; // 화장실 이름
+
+                        console.log(`마커 데이터: 이름=${toiletName}, 위도=${lat}, 경도=${lng}`);
+
+                        // 위도와 경도가 유효하면 마커 추가
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            const distance = calculateDistance(
+                                userLatLng.lat(), 
+                                userLatLng.lng(), 
+                                lat, 
+                                lng
+                            );
+
+                            // 반경 1km 이내의 화장실만 표시
+                            if (distance <= 1000) {
+                                new naver.maps.Marker({
+                                    position: new naver.maps.LatLng(lat, lng),
+                                    map: map,
+                                    title: toiletName
+                                });
+                            } else {
+                                console.warn(`반경을 벗어난 마커: 이름=${toiletName}, 거리=${distance}m`);
+                            }
+                        } else {
+                            console.error(`유효하지 않은 데이터: 이름=${toiletName}, 위도=${lat}, 경도=${lng}`);
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error("JSON 데이터를 가져오는 중 오류 발생:", error);
+                });
+        }
+
+        // 사용자 위치 업데이트 함수
+        function updateLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        var lat = position.coords.latitude;
+                        var lng = position.coords.longitude;
+
+                        var userLatLng = new naver.maps.LatLng(lat, lng);
+
+                        // 지도 중심 이동
+                        map.setCenter(userLatLng);
+
+                        // 현재 위치 마커 업데이트
+                        userMarker.setPosition(userLatLng);
+
+                        // 주변 화장실 마커 로드
+                        loadToiletMarkers(userLatLng);
+
+                        console.log(`현재 위치: 위도(${lat}), 경도(${lng})`);
+                    },
+                    function (error) {
+                        console.error("위치 정보를 가져올 수 없습니다:", error);
+                    },
+                    {
+                        enableHighAccuracy: false,
+                        maximumAge: 0,
+                        timeout: 30000
+                    }
+                );
+            } else {
+                alert("Geolocation을 지원하지 않는 브라우저입니다.");
+            }
+        }
+
+        // 실시간 위치 업데이트 (5초마다)
+        setInterval(updateLocation, 5000);
+
+        // 초기 위치 업데이트
+        updateLocation();
+    </script>
+</body>
+</html>
+
+-->
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <script type="text/javascript" 
+        src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=h2d8vaz3os"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nearby Public Toilets</title>
+</head>
+<body>
+    <div id="map" style="width:100%; height:800px;"></div>
+    <script>
+        // 네이버 지도 초기화
+        var map = new naver.maps.Map('map', {
+            center: new naver.maps.LatLng(37.5665, 126.9780), // 기본 위치 (서울 시청)
+            zoom: 15
+        });
+
+        // 현재 위치 마커
+        var userMarker = new naver.maps.Marker({
+            position: map.getCenter(),
+            map: map,
+            title: "내 위치"
+        });
+
+        // 거리 계산 함수 (위도와 경도를 사용)
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371e3; // 지구 반지름 (미터)
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lng2 - lng1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            const distance = R * c; // 거리 (미터)
+            return distance;
+        }
+
+        function loadToiletMarkers(userLatLng) {
+            fetch('toilets_cleaned.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("JSON 데이터 로드 성공:", data);
+        
+                    // 반경 5km 이내 데이터만 필터링
+                    const filteredData = data.filter((toilet) => {
+                        const { latitude, longitude } = toilet;
+                        if (latitude === null || longitude === null) {
+                            return false; // 유효하지 않은 데이터 제외
+                        }
+        
+                        const distance = calculateDistance(
+                            userLatLng.lat(),
+                            userLatLng.lng(),
+                            latitude,
+                            longitude
+                        );
+        
+                        return distance <= 5000; // 반경 5km 이내만 포함
+                    });
+        
+                    // 필터링된 데이터를 마커로 표시
+                    filteredData.forEach((toilet) => {
+                        const { name, latitude, longitude } = toilet;
+        
+                        new naver.maps.Marker({
+                            position: new naver.maps.LatLng(latitude, longitude),
+                            map: map,
+                            title: name
+                        });
+        
+                        console.log(`마커 추가됨: 이름=${name}, 위도=${latitude}, 경도=${longitude}`);
+                    });
+                })
+                .catch(error => {
+                    console.error("JSON 데이터를 가져오는 중 오류 발생:", error);
+                });
+        }
+
+        // 사용자 위치 업데이트 함수
+        function updateLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        var lat = position.coords.latitude;
+                        var lng = position.coords.longitude;
+
+                        var userLatLng = new naver.maps.LatLng(lat, lng);
+
+                        // 지도 중심 이동
+                        map.setCenter(userLatLng);
+
+                        // 현재 위치 마커 업데이트
+                        userMarker.setPosition(userLatLng);
+
+                        // 주변 화장실 마커 로드
+                        loadToiletMarkers(userLatLng);
+
+                        console.log(`현재 위치: 위도(${lat}), 경도(${lng})`);
+                    },
+                    function (error) {
+                        console.error("위치 정보를 가져올 수 없습니다:", error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 10000 // 타임아웃 증가
+                    }
+                );
+            } else {
+                alert("Geolocation을 지원하지 않는 브라우저입니다.");
+            }
+        }
+
+        // 초기 위치 업데이트
+        updateLocation();
+    </script>
+</body>
+</html> -->
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=h2d8vaz3os"></script>
+    <meta charset="UTF-8">
+    <title>경로 안내</title>
+</head>
+<body>
+    <div id="map" style="width:100%; height:800px;"></div>
+    <script>
+        // 지도 초기화
+        var map = new naver.maps.Map('map', {
+            center: new naver.maps.LatLng(37.359708, 127.1058342), // 출발지 좌표
+            zoom: 8
+        });
+
+        // Directions API 호출
+        function getDirections(startLat, startLng, goalLat, goalLng) {
+            const url = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${startLng},${startLat}&goal=${goalLng},${goalLat}`;
+            const headers = {
+                "X-NCP-APIGW-API-KEY-ID": "h2d8vaz3os",
+                "X-NCP-APIGW-API-KEY": "7b3UMnE0ex4wKT4zkcOMKsAoOqN616YIoLeLd3nP"
+            };
+
+            fetch(url, { headers })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 0) { // 성공 코드 확인
+                        const route = data.route.traoptimal[0];
+                        const path = route.path.map(coord => new naver.maps.LatLng(coord[1], coord[0])); // 경로 좌표 변환
+
+                        // 지도에 경로 표시
+                        new naver.maps.Polyline({
+                            map: map,
+                            path: path,
+                            strokeColor: '#FF0000',
+                            strokeWeight: 5
+                        });
+
+                        // 출발지 마커
+                        new naver.maps.Marker({
+                            position: path[0],
+                            map: map,
+                            title: "출발지"
+                        });
+
+                        // 도착지 마커
+                        new naver.maps.Marker({
+                            position: path[path.length - 1],
+                            map: map,
+                            title: "도착지"
+                        });
+                    } else {
+                        console.error("경로 데이터 로드 실패:", data.message);
+                    }
+                })
+                .catch(error => console.error("API 요청 실패:", error));
+        }
+
+        // 출발지와 도착지 좌표
+        const startLat = 37.359708; // 성남시 출발지 위도
+        const startLng = 127.1058342; // 성남시 출발지 경도
+        const goalLat = 35.179470; // 부산 도착지 위도
+        const goalLng = 129.075986; // 부산 도착지 경도
+
+        // 경로 호출
+        getDirections(startLat, startLng, goalLat, goalLng);
+    </script>
+</body>
+</html> -->
+
+
+<!-- <-- 실시간 경로 적용전--> 
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=h2d8vaz3os"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>현재 위치에서 가장 가까운 화장실 경로</title>
+</head>
+<body>
+    <div id="map" style="width:100%; height:800px;"></div>
+    <script>
+        // 네이버 지도 초기화
+        var map = new naver.maps.Map('map', {
+            center: new naver.maps.LatLng(37.5665, 126.9780), // 기본 위치 (서울 시청)
+            zoom: 15
+        });
+
+        var userMarker = new naver.maps.Marker({
+            map: map,
+            title: "현재 위치"
+        });
+
+        // 거리 계산 함수 (위도와 경도를 사용)
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371e3; // 지구 반지름 (미터)
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lng2 - lng1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c; // 거리 (미터)
+        }
+
+        // 가장 가까운 화장실 찾기
+        function findNearestToilet(userLatLng, toilets) {
+            let nearestToilet = null;
+            let minDistance = Infinity;
+
+            toilets.forEach(toilet => {
+                if (toilet.latitude && toilet.longitude) {
+                    const distance = calculateDistance(
+                        userLatLng.lat(),
+                        userLatLng.lng(),
+                        toilet.latitude,
+                        toilet.longitude
+                    );
+
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearestToilet = toilet;
+                    }
+                }
+            });
+
+            return nearestToilet;
+        }
+
+        // 경로를 지도에 표시
+        function showRouteToToilet(startLat, startLng, goalLat, goalLng) {
+            const url = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${startLng},${startLat}&goal=${goalLng},${goalLat}`;
+            const headers = {
+                "X-NCP-APIGW-API-KEY-ID": "h2d8vaz3os",
+                "X-NCP-APIGW-API-KEY": "7b3UMnE0ex4wKT4zkcOMKsAoOqN616YIoLeLd3nP"
+            };
+
+            fetch(url, { headers })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 0) {
+                        const route = data.route.traoptimal[0];
+                        const path = route.path.map(coord => new naver.maps.LatLng(coord[1], coord[0]));
+
+                        // 경로 표시
+                        new naver.maps.Polyline({
+                            map: map,
+                            path: path,
+                            strokeColor: '#FF0000',
+                            strokeWeight: 5
+                        });
+
+                        // 출발지와 목적지에 마커 추가
+                        new naver.maps.Marker({
+                            position: path[0],
+                            map: map,
+                            title: "현재 위치"
+                        });
+                        new naver.maps.Marker({
+                            position: path[path.length - 1],
+                            map: map,
+                            title: "가장 가까운 화장실"
+                        });
+                    } else {
+                        console.error("경로 탐색 실패:", data.message);
+                    }
+                })
+                .catch(error => console.error("API 요청 실패:", error));
+        }
+
+        // 사용자 위치 및 가장 가까운 화장실 탐색
+        function updateLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        const userLatLng = new naver.maps.LatLng(userLat, userLng);
+
+                        // 지도 중심 이동 및 현재 위치 마커 업데이트
+                        map.setCenter(userLatLng);
+                        userMarker.setPosition(userLatLng);
+
+                        // JSON 파일에서 화장실 데이터 로드
+                        fetch('toilets_cleaned.json')
+                            .then(response => response.json())
+                            .then(data => {
+                                const nearestToilet = findNearestToilet(userLatLng, data);
+
+                                if (nearestToilet) {
+                                    console.log(`가장 가까운 화장실: ${nearestToilet.name}`);
+                                    showRouteToToilet(
+                                        userLat, userLng,
+                                        nearestToilet.latitude, nearestToilet.longitude
+                                    );
+                                } else {
+                                    alert("주변에 화장실이 없습니다.");
+                                }
+                            })
+                            .catch(error => console.error("화장실 데이터를 로드하는 중 오류 발생:", error));
+                    },
+                    function (error) {
+                        console.error("위치 정보를 가져오는 중 오류 발생:", error);
+                    },
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+                );
+            } else {
+                alert("Geolocation을 지원하지 않는 브라우저입니다.");
+            }
+        }
+
+        // 초기 위치 업데이트
+        updateLocation();
+    </script>
+</body>
+</html> -->
+
+
+
+<!-- 실시간 위치를 반영+길찾기 경로+화장실도착지 마크 계속유지 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=h2d8vaz3os"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 경로 안내</title>
+</head>
+<body>
+    <div id="map" style="width:100%; height:800px;"></div>
+    <script>
+        let userMarker = null; // 사용자 위치 마커
+        let destinationMarker = null; // 도착지 마커
+        let routePolyline = null; // 경로를 표시할 Polyline
+
+        // 네이버 지도 초기화
+        const map = new naver.maps.Map('map', {
+            center: new naver.maps.LatLng(37.5665, 126.9780), // 기본 위치 (서울 시청)
+            zoom: 15
+        });
+
+        // 거리 계산 함수
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371e3; // 지구 반지름 (미터)
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lng2 - lng1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c; // 거리 (미터)
+        }
+
+        // 가장 가까운 화장실 찾기
+        function findNearestToilet(userLatLng, toilets) {
+            let nearestToilet = null;
+            let minDistance = Infinity;
+
+            toilets.forEach(toilet => {
+                if (toilet.latitude && toilet.longitude) {
+                    const distance = calculateDistance(
+                        userLatLng.lat(),
+                        userLatLng.lng(),
+                        toilet.latitude,
+                        toilet.longitude
+                    );
+
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nearestToilet = toilet;
+                    }
+                }
+            });
+
+            return nearestToilet;
+        }
+
+        // 경로를 지도에 표시
+        function showRouteToToilet(startLat, startLng, goalLat, goalLng) {
+            const url = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${startLng},${startLat}&goal=${goalLng},${goalLat}`;
+            const headers = {
+                "X-NCP-APIGW-API-KEY-ID": "h2d8vaz3os",
+                "X-NCP-APIGW-API-KEY": "7b3UMnE0ex4wKT4zkcOMKsAoOqN616YIoLeLd3nP"
+            };
+
+            fetch(url, { headers })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 0) {
+                        const route = data.route.traoptimal[0];
+                        const path = route.path.map(coord => new naver.maps.LatLng(coord[1], coord[0]));
+
+                        // 기존 경로가 있으면 제거
+                        if (routePolyline) {
+                            routePolyline.setMap(null);
+                        }
+
+                        // 경로 표시
+                        routePolyline = new naver.maps.Polyline({
+                            map: map,
+                            path: path,
+                            strokeColor: '#FF0000',
+                            strokeWeight: 5
+                        });
+
+                        // 도착지 마커 업데이트
+                        const destinationLatLng = path[path.length - 1];
+                        if (!destinationMarker) {
+                            destinationMarker = new naver.maps.Marker({
+                                map: map,
+                                title: "가장 가까운 화장실",
+                                icon: {
+                                    content: '<div style="color: blue;">🚻</div>'
+                                }
+                            });
+                        }
+                        destinationMarker.setPosition(destinationLatLng);
+                    } else {
+                        console.error("경로 탐색 실패:", data.message);
+                    }
+                })
+                .catch(error => console.error("API 요청 실패:", error));
+        }
+
+        // 실시간 위치 업데이트 및 경로 갱신
+        function watchUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    function (position) {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        const userLatLng = new naver.maps.LatLng(userLat, userLng);
+
+                        // 지도 중심 업데이트
+                        map.setCenter(userLatLng);
+
+                        // 사용자 위치 마커 업데이트
+                        if (!userMarker) {
+                            userMarker = new naver.maps.Marker({
+                                map: map,
+                                title: "현재 위치"
+                            });
+                        }
+                        userMarker.setPosition(userLatLng);
+
+                        // JSON 파일에서 화장실 데이터 로드
+                        fetch('toilets_cleaned.json')
+                            .then(response => response.json())
+                            .then(data => {
+                                const nearestToilet = findNearestToilet(userLatLng, data);
+
+                                if (nearestToilet) {
+                                    console.log(`가장 가까운 화장실: ${nearestToilet.name}`);
+                                    showRouteToToilet(
+                                        userLat, userLng,
+                                        nearestToilet.latitude, nearestToilet.longitude
+                                    );
+                                } else {
+                                    alert("주변에 화장실이 없습니다.");
+                                }
+                            })
+                            .catch(error => console.error("화장실 데이터를 로드하는 중 오류 발생:", error));
+                    },
+                    function (error) {
+                        console.error("위치 정보를 가져오는 중 오류 발생:", error);
+                    },
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+                );
+            } else {
+                alert("Geolocation을 지원하지 않는 브라우저입니다.");
+            }
+        }
+
+        // 실시간 위치 추적 시작
+        watchUserLocation();
+    </script>
+</body>
+</html>
+
+
+<!-- 검색화장실 불러오기-안된다.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=h2d8vaz3os"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>화장실 검색 및 길찾기</title>
+</head>
+<body>
+    <div id="map" style="width:100%; height:800px;"></div>
+    <script>
+        const SEARCH_API_CLIENT_ID = "ST64QkhoVBggxmUlWrLt";
+        const SEARCH_API_CLIENT_SECRET = "PyWfYnbdv1";
+        const NCP_API_CLIENT_ID = "h2d8vaz3os";
+        const NCP_API_CLIENT_SECRET = "7b3UMnE0ex4wKT4zkcOMKsAoOqN616YIoLeLd3nP";
+
+        let map = new naver.maps.Map("map", {
+            center: new naver.maps.LatLng(37.5665, 126.9780), // 서울 시청
+            zoom: 15
+        });
+
+        let userMarker = null;
+
+        function updateUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        const userLatLng = new naver.maps.LatLng(userLat, userLng);
+
+                        map.setCenter(userLatLng);
+
+                        if (!userMarker) {
+                            userMarker = new naver.maps.Marker({
+                                position: userLatLng,
+                                map: map,
+                                title: "현재 위치"
+                            });
+                        } else {
+                            userMarker.setPosition(userLatLng);
+                        }
+
+                        searchNearbyToilets(userLat, userLng);
+                    },
+                    error => console.error("위치 정보를 가져오는 중 오류 발생:", error),
+                    { enableHighAccuracy: true }
+                );
+            } else {
+                alert("Geolocation을 지원하지 않는 브라우저입니다.");
+            }
+        }
+
+        function searchNearbyToilets(lat, lng) {
+            const query = "화장실";
+            const radius = 5000;
+            const url = `https://openapi.naver.com/v1/search/local.json?query=${query}&coordinate=${lng},${lat}&radius=${radius}`;
+            
+            fetch(url, {
+                headers: {
+                    "X-Naver-Client-Id": SEARCH_API_CLIENT_ID,
+                    "X-Naver-Client-Secret": SEARCH_API_CLIENT_SECRET
+                }
+            })
+                .then(response => {
+                    console.log("HTTP 상태 코드:", response.status);
+                    if (!response.ok) {
+                        throw new Error(`Search API 호출 실패: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Search API 결과 데이터:", data);
+
+                    if (data.items.length === 0) {
+                        console.warn("반경 내 검색 결과 없음");
+                        return;
+                    }
+
+                    displayToiletMarkers(data.items, lat, lng);
+                })
+                .catch(error => {
+                    console.error("Search API 요청 실패:", error);
+                });
+        }
+
+        function displayToiletMarkers(items, userLat, userLng) {
+            items.forEach(item => {
+                const mapx = parseFloat(item.mapx); // EPSG:3857 X 좌표
+                const mapy = parseFloat(item.mapy); // EPSG:3857 Y 좌표
+        
+                console.log("변환 전 좌표:", mapx, mapy);
+        
+                // EPSG:3857 → EPSG:4326 변환
+                const { lat, lng } = convertEPSG3857ToWGS84(mapx, mapy);
+                const wgs84LatLng = new naver.maps.LatLng(lat, lng);
+        
+                const marker = new naver.maps.Marker({
+                    position: wgs84LatLng,
+                    map: map,
+                    title: item.title
+                });
+        
+                // 마커 클릭 이벤트 (길찾기)
+                naver.maps.Event.addListener(marker, "click", () => {
+                    findRoute(userLat, userLng, wgs84LatLng.lat(), wgs84LatLng.lng(), item.title);
+                });
+            });
+        }
+
+        function convertEPSG3857ToWGS84(x, y) {
+            const RADIUS = 6378137; // WGS84 타원체 반경
+            const lon = (x / RADIUS) * (180 / Math.PI);
+            const lat = (Math.atan(Math.exp(y / RADIUS)) * 2 - Math.PI / 2) * (180 / Math.PI);
+            return { lat, lng: lon };
+        }
+
+        function findRoute(startLat, startLng, goalLat, goalLng, placeName) {
+            const url = `https://naveropenapi.apigw.ntruss.com/map-direction/v1/driving?start=${startLng},${startLat}&goal=${goalLng},${goalLat}`;
+
+            fetch(url, {
+                headers: {
+                    "X-NCP-APIGW-API-KEY-ID": NCP_API_CLIENT_ID,
+                    "X-NCP-APIGW-API-KEY": NCP_API_CLIENT_SECRET
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.code === 0) {
+                        const route = data.route.traoptimal[0];
+                        const path = route.path.map(coord => new naver.maps.LatLng(coord[1], coord[0]));
+
+                        new naver.maps.Polyline({
+                            map: map,
+                            path: path,
+                            strokeColor: '#FF0000',
+                            strokeWeight: 5
+                        });
+
+                        map.setCenter(new naver.maps.LatLng(goalLat, goalLng));
+                        alert(`길찾기 안내: ${placeName}`);
+                    } else {
+                        console.error("길찾기 실패:", data.message);
+                    }
+                })
+                .catch(error => console.error("길찾기 요청 실패:", error));
+        }
+
+        updateUserLocation();
+    </script>
+</body>
+</html> -->

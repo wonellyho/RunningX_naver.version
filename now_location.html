@@ -1,0 +1,116 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geolocation API</title>
+</head>
+<body>
+    <h1>사용자의 현재 위치</h1>
+    <button onclick="getLocation()">현재 위치 가져오기</button>
+    <p id="location"></p>
+
+    <script>
+        function getLocation() {
+            // Geolocation 지원 여부 확인
+            if (navigator.geolocation) {
+                // 현재 위치 가져오기
+                navigator.geolocation.getCurrentPosition(
+                    function (position) {
+                        const latitude = position.coords.latitude; // 위도
+                        const longitude = position.coords.longitude; // 경도
+                        document.getElementById("location").textContent =
+                            `위도: ${latitude}, 경도: ${longitude}`;
+                        console.log(`위도: ${latitude}, 경도: ${longitude}`);
+                    },
+                    function (error) {
+                        // 오류 처리
+                        switch (error.code) {
+                            case error.PERMISSION_DENIED:
+                                alert("위치 정보 사용이 거부되었습니다.");
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                alert("위치 정보를 사용할 수 없습니다.");
+                                break;
+                            case error.TIMEOUT:
+                                alert("요청 시간이 초과되었습니다.");
+                                break;
+                            default:
+                                alert("알 수 없는 오류가 발생했습니다.");
+                        }
+                    },
+                    {
+                        enableHighAccuracy: true, // 높은 정확도 요청
+                        timeout: 10000, // 최대 대기 시간 (밀리초)
+                        maximumAge: 0 // 캐시된 위치 데이터 사용 안 함
+                    }
+                );
+            } else {
+                // Geolocation API 미지원 브라우저 처리
+                alert("Geolocation을 지원하지 않는 브라우저입니다.");
+            }
+        }
+    </script>
+</body>
+</html>
+
+ -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geolocation API</title>
+</head>
+<body>
+    <h1>현재 위치 기반 화장실 검색</h1>
+    <button onclick="sendLocation()">현재 위치로 검색</button>
+    <p id="location"></p>
+    <ul id="results"></ul>
+
+    <script>
+        function sendLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+
+                    document.getElementById("location").textContent =
+                        `위도: ${latitude}, 경도: ${longitude}`;
+
+                    // 서버로 위치 데이터를 전송
+                    fetch("http://localhost:5000/search", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ latitude, longitude })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data);
+                        displayResults(data);
+                    })
+                    .catch(error => console.error("요청 실패:", error));
+                }, error => {
+                    alert("위치 정보를 가져오는 데 실패했습니다.");
+                });
+            } else {
+                alert("Geolocation을 지원하지 않는 브라우저입니다.");
+            }
+        }
+
+        function displayResults(results) {
+            const resultsContainer = document.getElementById("results");
+            resultsContainer.innerHTML = ""; // 기존 결과 초기화
+
+            results.forEach(item => {
+                const listItem = document.createElement("li");
+                listItem.textContent = `이름: ${item.title}, 주소: ${item.address}, 도로명 주소: ${item.roadAddress}`;
+                resultsContainer.appendChild(listItem);
+            });
+        }
+    </script>
+</body>
+</html>
